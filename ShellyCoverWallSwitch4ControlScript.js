@@ -2,9 +2,15 @@
 // It listens for button presses to open, close, or stop the cover.
 // The cover's state is checked to determine if it is currently moving.
 
+// Initialize Shelly Script
 let CONFIG = {
 	coverId: 0,
 };
+
+// const EVENT_BUTTON_PUSH = "single_push";
+// const EVENT_BUTTON_DOUBLE_PUSH = "double_push";
+// const EVENT_BUTTON_TRIPLE_PUSH = "triple_push";
+// const EVENT_BUTTON_LONG_PUSH = "long_push";
 
 function coverStop() {
 	Shelly.call(
@@ -53,7 +59,17 @@ function coverClose() {
 
 function coverIsMoving() {
 	let status = Shelly.getComponentStatus("cover", CONFIG.coverId);
-	return status.state != "stopped";
+	print(status);
+	print("State is: " + status.state);
+	return coverIsMoving(status);
+}
+
+function coverIsMoving(status) {
+	return (
+		status.state == "opening" ||
+		status.state == "closing" ||
+		status.state == "calibrating"
+	);
 }
 
 function isOpenButtonPressed(event) {
@@ -71,19 +87,24 @@ function isCloseButtonPressed(event) {
 }
 
 Shelly.addEventHandler(function (event) {
+	// print("Event received");
+	// print(event.component);
+	// print(event.info.event);
+
+	let status = Shelly.getComponentStatus("cover", CONFIG.coverId);
+
 	if (isOpenButtonPressed(event)) {
 		print("Open button pressed");
-		let isMoving = coverIsMoving();
-		if (isMoving) {
+		if (coverIsMoving(status)) {
 			coverStop();
-		} else {
+		} else if (status.state != "open") {
 			coverOpen();
 		}
 	} else if (isCloseButtonPressed(event)) {
 		print("Close button pressed");
-		if (coverIsMoving()) {
+		if (coverIsMoving(status)) {
 			coverStop();
-		} else {
+		} else if (status.state != "close") {
 			coverClose();
 		}
 	}
