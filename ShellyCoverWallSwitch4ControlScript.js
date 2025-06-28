@@ -147,8 +147,8 @@ function debugLog(message) {
  * @param {Error} [error] - Optional error object
  */
 function errorLog(message, error) {
-	const timestamp = new Date().toISOString();
-	let errorMessage = "[ERROR] " + timestamp + " - " + message;
+	// Shelly may not support Date.toISOString(), use simpler approach
+	let errorMessage = "[ERROR] " + message;
 
 	if (error) {
 		errorMessage += ": " + error.toString();
