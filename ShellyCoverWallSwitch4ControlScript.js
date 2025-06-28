@@ -41,6 +41,8 @@ const EVENT_BUTTON_LONG_PUSH = "long_push";
  */
 let CONFIG = {
 	coverId: 0,
+	// Add debug configuration to control logging output
+	debug: false,
 	virtualComponents: [
 		{
 			key: "button:200",
@@ -129,17 +131,43 @@ let CONFIG = {
 	],
 };
 
+/**
+ * Logs messages only when debug mode is enabled
+ * @param {string} message - The message to log
+ */
+function debugLog(message) {
+	if (CONFIG.debug) {
+		print("[DEBUG] " + message);
+	}
+}
+
+/**
+ * Logs error messages with timestamp
+ * @param {string} message - The error message to log
+ * @param {Error} [error] - Optional error object
+ */
+function errorLog(message, error) {
+	const timestamp = new Date().toISOString();
+	let errorMessage = "[ERROR] " + timestamp + " - " + message;
+
+	if (error) {
+		errorMessage += ": " + error.toString();
+	}
+
+	print(errorMessage);
+}
+
 function coverStop() {
 	print("Stopping cover");
 	Shelly.call(
 		"Cover.Stop",
 		{ id: CONFIG.coverId },
 		function (_, error_code, error_message) {
-			// the request is successfull
+			// the request is successful
 			if (error_code === 0) {
 				print("Cover is stopped");
 			} else {
-				print(error_message);
+				errorLog("Failed to stop cover", error_message);
 			}
 		}
 	);
@@ -155,7 +183,7 @@ function coverOpen() {
 			if (error_code === 0) {
 				print("Cover is opening");
 			} else {
-				print(error_message);
+				errorLog("Failed to open cover", error_message);
 			}
 		}
 	);
@@ -171,7 +199,7 @@ function coverClose() {
 			if (error_code === 0) {
 				print("Cover is closing");
 			} else {
-				print(error_message);
+				errorLog("Failed to close cover", error_message);
 			}
 		}
 	);
@@ -192,7 +220,7 @@ function coverIsMoving(status) {
 function handleCoverAction(action) {
 	let status = Shelly.getComponentStatus("cover", CONFIG.coverId);
 	if (!status) {
-		print("Error: Unable to retrieve cover status");
+		errorLog("Unable to retrieve cover status");
 		return;
 	}
 
@@ -203,13 +231,13 @@ function handleCoverAction(action) {
 	} else if (action === "close" && status.state !== "close") {
 		coverClose();
 	} else {
-		print("Cover is already in the " + status.state + " state");
+		debugLog("Cover is already in the " + status.state + " state");
 	}
 }
 
 function triggerButtonEvent(deviceIp, buttonId, event) {
 	if (!deviceIp || !buttonId || !event) {
-		print("Missing arguments");
+		errorLog("Missing arguments for triggerButtonEvent");
 		return;
 	}
 
@@ -237,7 +265,7 @@ function triggerButtonEvent(deviceIp, buttonId, event) {
 			if (error_code === 0) {
 				print("Trigger successful");
 			} else {
-				print("Error: " + error_message);
+				errorLog("HTTP request failed", error_message);
 			}
 		}
 	);
@@ -250,11 +278,11 @@ function initVirtualComponents() {
 
 		if (component === null || component.name !== config.name) {
 			if (component !== null) {
-				print("Deleting virtual component: " + config.key);
+				debugLog("Deleting virtual component: " + config.key);
 				Shelly.call("Virtual.Delete", { key: config.key });
 			}
 
-			print("Adding virtual component: " + config.key);
+			debugLog("Adding virtual component: " + config.key);
 			let type = config.key.split(":")[0];
 			Shelly.call("Virtual.Add", {
 				type: type,
@@ -270,9 +298,7 @@ function initVirtualComponents() {
 function initEventActions() {
 	print("Initializing event actions");
 	Shelly.addEventHandler(function (event) {
-		// print("Event received: " + JSON.stringify(event));
-
-		// Check if the event is from a virtual component
+		// Check if the event is from a relevant component
 		if (
 			!(
 				event.component.indexOf("bthomesensor:") === 0 ||
@@ -283,7 +309,7 @@ function initEventActions() {
 			return;
 		}
 
-		print("Event received for component: " + JSON.stringify(event));
+		debugLog("Event received: " + JSON.stringify(event));
 
 		CONFIG.eventActions.forEach(function (eac) {
 			if (
@@ -298,11 +324,15 @@ function initEventActions() {
 	print("Event actions initialized");
 }
 
+// Set debug mode and start the script
+print("Starting Shelly Cover Wall Switch Control script");
+// To enable debugging, set CONFIG.debug to true
+// CONFIG.debug = true;
 initVirtualComponents();
 Timer.set(1000, false, function () {
 	try {
 		initEventActions();
 	} catch (err) {
-		print("Error initializing event actions: " + err);
+		errorLog("Error initializing event actions", err);
 	}
 });
