@@ -244,6 +244,21 @@ function initVirtualComponents() {
 function initEventActions() {
 	print("Initializing event actions");
 	Shelly.addEventHandler(function (event) {
+		// print("Event received: " + JSON.stringify(event));
+
+		// Check if the event is from a virtual component
+		if (
+			!(
+				event.component.indexOf("bthomesensor:") === 0 ||
+				event.component.indexOf("bthomedevice:") === 0 ||
+				event.component.indexOf("button:") === 0
+			)
+		) {
+			return;
+		}
+
+		print("Event received for component: " + JSON.stringify(event));
+
 		CONFIG.eventActions.forEach(function (eac) {
 			if (
 				event.component === eac.component &&
@@ -257,4 +272,10 @@ function initEventActions() {
 }
 
 initVirtualComponents();
+Timer.set(1000, false, function () {
+	try {
 initEventActions();
+	} catch (err) {
+		print("Error initializing event actions: " + err);
+	}
+});
