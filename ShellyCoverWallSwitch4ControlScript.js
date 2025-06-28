@@ -73,7 +73,7 @@ let CONFIG = {
 		{
 			component: "bthomesensor:201",
 			event: EVENT_ALL,
-			action: function () {
+			action: function (event) {
 				print("TOP LEFT BUTTON PRESSED EVENT");
 				handleCoverAction("open");
 			},
@@ -81,7 +81,7 @@ let CONFIG = {
 		{
 			component: "bthomesensor:202",
 			event: EVENT_ALL,
-			action: function () {
+			action: function (event) {
 				print("BOTTOM LEFT BUTTON PRESSED EVENT");
 				handleCoverAction("close");
 			},
@@ -89,15 +89,41 @@ let CONFIG = {
 		{
 			component: "bthomesensor:203",
 			event: EVENT_ALL,
-			action: function () {
+			action: function (event) {
 				print("TOP RIGHT BUTTON PRESSED EVENT");
+				// triggerButtonEvent("192.168.2.42", 200, "single_push");
 			},
 		},
 		{
 			component: "bthomesensor:204",
 			event: EVENT_ALL,
-			action: function () {
+			action: function (event) {
 				print("BOTTOM RIGHT BUTTON PRESSED EVENT");
+				// triggerButtonEvent("192.168.2.42", 200, "single_push");
+			},
+		},
+		{
+			component: "bthomedevice:200",
+			event: EVENT_ALL,
+			action: function (event) {
+				switch (event.info.idx) {
+					case 0:
+						print("TOP LEFT BUTTON PRESSED EVENT");
+						handleCoverAction("open");
+						break;
+					case 1:
+						print("BOTTOM LEFT BUTTON PRESSED EVENT");
+						handleCoverAction("close");
+						break;
+					case 2:
+						print("TOP RIGHT BUTTON PRESSED EVENT");
+						handleCoverAction("open");
+						break;
+					case 3:
+						print("BOTTOM RIGHT BUTTON PRESSED EVENT");
+						handleCoverAction("close");
+						break;
+				}
 			},
 		},
 	],
@@ -262,9 +288,10 @@ function initEventActions() {
 		CONFIG.eventActions.forEach(function (eac) {
 			if (
 				event.component === eac.component &&
-				(event.event === eac.event || eac.event === EVENT_ALL)
+				(event.info.event === eac.event || eac.event === EVENT_ALL)
 			) {
-				eac.action();
+				eac.action(event);
+				return;
 			}
 		});
 	});
@@ -274,7 +301,7 @@ function initEventActions() {
 initVirtualComponents();
 Timer.set(1000, false, function () {
 	try {
-initEventActions();
+		initEventActions();
 	} catch (err) {
 		print("Error initializing event actions: " + err);
 	}
