@@ -119,11 +119,11 @@ let CONFIG = {
 						break;
 					case 2:
 						print("TOP RIGHT BUTTON PRESSED EVENT");
-						handleCoverAction("open");
+						handleCoverAction("slat_open");
 						break;
 					case 3:
 						print("BOTTOM RIGHT BUTTON PRESSED EVENT");
-						handleCoverAction("close");
+						handleCoverAction("slat_close");
 						break;
 				}
 			},
@@ -189,6 +189,56 @@ function coverOpen() {
 	);
 }
 
+/**
+ * Moves the cover (blinds/curtains) to a specific position using the Shelly API.
+ *
+ * @param {Object} coverPosition - An object containing the position parameters:
+ * @param {number} coverPosition.id - The ID of the cover component instance.
+ * @param {number} coverPosition.pos - The target position, from 0 (fully closed) to 100 (fully open).
+ * @param {number} [coverPosition.slat_pos] - Optional duration of the movement in milliseconds.
+ * @see {@link https://shelly-api-docs.shelly.cloud/gen2/ComponentsAndServices/Cover#covergotoposition|Shelly API Documentation}
+ * @returns {void} No return value, but prints status message on completion.
+ */
+function coverGoToPosition(coverPosition) {
+	Shelly.call(
+		"Cover.GoToPosition",
+		coverPosition,
+		function (_, error_code, error_message) {
+			if (error_code === 0) {
+				print("Cover position set successfully");
+			} else {
+				errorLog("Failed to set cover position", error_message);
+			}
+		}
+	);
+}
+
+/**
+ * Sets only the cover position while maintaining the current slat position.
+ * @param {number} position - The target position for the cover (0-100).
+ */
+function coverSetPosition(position) {
+	let params = {
+		id: CONFIG.coverId,
+		pos: position,
+	};
+
+	coverGoToPosition(params);
+}
+
+/**
+ * Sets only the slat position while maintaining the current cover position.
+ * @param {number} position - The target position for the slats (0-100).
+ */
+function coverSetSlatPosition(position) {
+	let params = {
+		id: CONFIG.coverId,
+		slat_pos: position,
+	};
+
+	coverGoToPosition(params);
+}
+
 function coverClose() {
 	print("Closing cover");
 	Shelly.call(
@@ -214,24 +264,67 @@ function coverIsMoving(status) {
 }
 
 /**
- * Executes open/close actions or stops the cover if it's already moving.
- * @param {"open"|"close"} action - The desired cover action.
+ * Executes open/close actions for cover and slats, or stops the cover if it's already moving.
+ * @param {"open"|"close"|"slat_open"|"slat_close"} action - The desired cover action.
  */
 function handleCoverAction(action) {
+	// Get current cover status
 	let status = Shelly.getComponentStatus("cover", CONFIG.coverId);
 	if (!status) {
 		errorLog("Unable to retrieve cover status");
 		return;
 	}
 
+	// If cover is moving, stop it regardless of requested action
 	if (coverIsMoving(status)) {
 		coverStop();
-	} else if (action === "open" && status.state !== "open") {
-		coverOpen();
-	} else if (action === "close" && status.state !== "close") {
-		coverClose();
-	} else {
-		debugLog("Cover is already in the " + status.state + " state");
+		return;
+	}
+
+	// Handle slat adjustments with a common approach
+	if (action === "slat_open" || action === "slat_close") {
+		const currentSlatPos =
+			status.slat_pos !== undefined ? status.slat_pos : 50;
+		const adjustment = action === "slat_open" ? 25 : -25;
+		const newSlatPos = Math.min(
+			100,
+			Math.max(0, currentSlatPos + adjustment)
+		);
+
+		if (newSlatPos !== currentSlatPos) {
+			debugLog(
+				"Adjusting slat position from " +
+					currentSlatPos +
+					" to " +
+					newSlatPos
+			);
+			coverSetSlatPosition(newSlatPos);
+		}
+		return;
+	}
+
+	// Handle cover open/close actions
+	switch (action) {
+		case "open":
+			// Open the cover if not already open
+			if (status.state !== "open") {
+				coverOpen();
+			} else {
+				debugLog("Cover is already open");
+			}
+			break;
+
+		case "close":
+			// Close the cover if not already closed
+			if (status.state !== "close") {
+				coverClose();
+			} else {
+				debugLog("Cover is already closed");
+			}
+			break;
+
+		default:
+			debugLog("Unknown cover action: " + action);
 	}
 }
 
